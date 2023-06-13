@@ -4,13 +4,30 @@ Wrapper for MP4Box.
 
 __author__ = "aa.blinov"
 
+
 import logging
 import os
 import subprocess
 import traceback
 
+from contextlib import contextmanager
 from math import ceil
-from typing import Callable, List
+from typing import Callable, Generator, List
+
+
+@contextmanager
+def cd(new_directory: str) -> Generator[None, None, None]:
+    """
+    An analogue of the cd command, implemented as a context manager.
+
+    :param new_directory: New directory.
+    """
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(new_directory))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
 
 
 class MP4BoxWrapper:
@@ -33,7 +50,7 @@ class MP4BoxWrapper:
         :param output_directory: Output directory.
         """
         self.original_video_path = original_video_path
-        self.video_directory = video_segments
+        self.video_segments = video_segments
         self.output_path = output_path
         self.output_directory = output_directory
 
@@ -44,9 +61,9 @@ class MP4BoxWrapper:
         :return: List of MP4 video file paths.
         """
         video_files = []
-        for file in os.listdir(self.video_directory):
+        for file in os.listdir(self.video_segments):
             if file.endswith(".mp4"):
-                video_files.append(os.path.join(self.video_directory, file))
+                video_files.append(os.path.join(self.video_segments, file))
 
         return video_files
 
@@ -174,10 +191,12 @@ class MP4BoxWrapper:
         videos_with_commands = []
         for video in video_files:
             if video == video_files[0]:
-                videos_with_commands.append(f"-add {video}")
+                videos_with_commands.append("-add")
+                videos_with_commands.append(video)
                 continue
 
-            videos_with_commands.append(f"-cat {video}")
+            videos_with_commands.append("-cat")
+            videos_with_commands.append(video)
 
         command = [
             "MP4Box",
@@ -187,6 +206,7 @@ class MP4BoxWrapper:
         ]
         try:
             subprocess.run(command, check=True)
+
             logging.info(
                 "Videos merged successfully."
                 f"Find result here: {self.output_path}"
@@ -206,7 +226,7 @@ if __name__ == "__main__":
         output_path="merged.mp4",
         output_directory="video_segments"
     )
-    mp4box.split_videos(duration=60)
+    # mp4box.split_videos(duration=60)
 
     mp4box.merge_videos(
         sort_function=lambda name: int(
