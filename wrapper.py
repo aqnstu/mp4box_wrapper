@@ -14,6 +14,9 @@ from contextlib import contextmanager
 from math import ceil
 from typing import Callable, Generator, List
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 @contextmanager
 def cd(new_directory: str) -> Generator[None, None, None]:
@@ -132,7 +135,7 @@ class MP4BoxWrapper:
         )
 
         if segment_count == 0:
-            logging.info(
+            logger.info(
                 f"Skipping file {self.original_video_path}: "
                 "duration is less than the specified segment duration."
                 )
@@ -156,12 +159,12 @@ class MP4BoxWrapper:
 
             try:
                 subprocess.run(command, check=True)
-                logging.info(
+                logger.info(
                     f"Segment {index+1} of video "
                     f"{self.original_video_path} saved to {output_path}"
                 )
             except subprocess.CalledProcessError:
-                logging.error(
+                logger.error(
                     f"Error while splitting video {self.original_video_path}: "
                     f"{traceback.format_exc()}"
                 )
@@ -179,15 +182,15 @@ class MP4BoxWrapper:
         video_files = self._get_video_files()
 
         if not video_files:
-            logging.info("No video files found in the directory.")
+            logger.info("No video files found in the directory.")
             return False
 
         if len(video_files) == 1:
-            logging.info("Can't merge just one videoю")
+            logger.info("Can't merge just one videoю")
 
         video_files.sort(key=sort_function)
 
-        logging.info(f"Video files: {video_files}")
+        logger.info(f"Video files: {video_files}")
         videos_with_commands = []
         for video in video_files:
             if video == video_files[0]:
@@ -207,13 +210,13 @@ class MP4BoxWrapper:
         try:
             subprocess.run(command, check=True)
 
-            logging.info(
+            logger.info(
                 "Videos merged successfully."
                 f"Find result here: {self.output_path}"
             )
             return True
         except subprocess.CalledProcessError:
-            logging.error(
+            logger.error(
                 f"Error while merging videos: {traceback.format_exc()}"
             )
             return False
