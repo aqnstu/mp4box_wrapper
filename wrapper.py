@@ -17,6 +17,8 @@ from typing import Callable, Generator, List
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+TMP_DIR_NAME = "tmp_mp4box"
+
 
 @contextmanager
 def cd(new_directory: str) -> Generator[None, None, None]:
@@ -41,7 +43,7 @@ class MP4BoxWrapper:
         original_video_path: str = "",
         video_segments: str = "",
         output_path: str = "",
-        output_directory: str = ""
+        output_directory: str = "",
     ) -> None:
         """
         Initialize MP4BoxWrapper.
@@ -92,30 +94,17 @@ class MP4BoxWrapper:
         :param video_path: Path to the video file.
         :return: Duration of the video in seconds.
         """
-        command = [
-            "MP4Box",
-            "-info",
-            video_path
-        ]
-        output = subprocess.check_output(
-            command,
-            stderr=subprocess.STDOUT
-        ).decode("utf-8")
+        command = ["MP4Box", "-info", video_path]
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT).decode(
+            "utf-8"
+        )
 
         duration_line = next(
-            (
-                line
-                for line in output.splitlines()
-                if "Duration" in line
-            ),
-            None
+            (line for line in output.splitlines() if "Duration" in line), None
         )
         if duration_line:
             duration_str = duration_line.split()[1].strip().replace(".", ":")
-            hours, minutes, seconds, millisecond = map(
-                int,
-                duration_str.split(":")
-            )
+            hours, minutes, seconds, millisecond = map(int, duration_str.split(":"))
 
             return hours * 3600 + minutes * 60 + seconds + millisecond * 1e-3
 
@@ -130,31 +119,29 @@ class MP4BoxWrapper:
         :return: True if the split process was successful, False otherwise.
         """
         segment_count = self._calculate_segment_count(
-            self.original_video_path,
-            duration
+            self.original_video_path, duration
         )
 
         if segment_count == 0:
             logger.info(
                 f"Skipping file {self.original_video_path}: "
                 "duration is less than the specified segment duration."
-                )
+            )
             return False
 
-        output_base = os.path.splitext(
-            os.path.basename(self.original_video_path)
-        )[0]
+        output_base = os.path.splitext(os.path.basename(self.original_video_path))[0]
         for index in range(segment_count):
             start_time = index * duration
             output_path = os.path.join(
-                self.output_directory,
-                f"{output_base}_segment_{index+1}.mp4"
+                self.output_directory, f"{output_base}_segment_{index+1}.mp4"
             )
             command = [
                 "MP4Box",
-                "-splitx", f"{start_time}:{start_time + duration}",
+                "-splitx",
+                f"{start_time}:{start_time + duration}",
                 self.original_video_path,
-                "-out", output_path
+                "-out",
+                output_path,
             ]
 
             try:
@@ -203,22 +190,19 @@ class MP4BoxWrapper:
 
         command = [
             "MP4Box",
-            "-force-cat",
-            *videos_with_commands,
-            self.output_path
+            "-tmp", TMP_DIR_NAME,
+            "-force-cat", *videos_with_commands,
+            self.output_path,
         ]
         try:
             subprocess.run(command, check=True)
 
             logger.info(
-                "Videos merged successfully."
-                f"Find result here: {self.output_path}"
+                "Videos merged successfully." f"Find result here: {self.output_path}"
             )
             return True
         except subprocess.CalledProcessError:
-            logger.error(
-                f"Error while merging videos: {traceback.format_exc()}"
-            )
+            logger.error(f"Error while merging videos: {traceback.format_exc()}")
             return False
 
 
@@ -227,12 +211,10 @@ if __name__ == "__main__":
         original_video_path="original.mp4",
         video_segments="video_segments",
         output_path="merged.mp4",
-        output_directory="video_segments"
+        output_directory="video_segments",
     )
     # mp4box.split_videos(duration=60)
 
     mp4box.merge_videos(
-        sort_function=lambda name: int(
-            name.split("_")[-1].removesuffix(".mp4")
-        )
+        sort_function=lambda name: int(name.split("_")[-1].removesuffix(".mp4"))
     )
